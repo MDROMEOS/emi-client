@@ -13,7 +13,7 @@ public class DeviceAdminReceiver extends android.app.admin.DeviceAdminReceiver {
         DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName admin = new ComponentName(context, DeviceAdminReceiver.class);
 
-        if (dpm.isDeviceOwnerApp(context.getPackageName())) {
+        if (dpm != null && dpm.isDeviceOwnerApp(context.getPackageName())) {
             dpm.addUserRestriction(admin, UserManager.DISALLOW_FACTORY_RESET);
             dpm.addUserRestriction(admin, UserManager.DISALLOW_SAFE_BOOT);
             dpm.setUninstallBlocked(admin, context.getPackageName(), true);

@@ -20,7 +20,7 @@ public class LockActivity extends Activity {
         );
 
         DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        if (dpm.isLockTaskPermitted(getPackageName())) {
+        if (dpm != null && dpm.isLockTaskPermitted(getPackageName())) {
             try {
                 startLockTask();
             } catch (Exception ignored) {}
@@ -28,5 +28,7 @@ public class LockActivity extends Activity {
     }
 
     @Override
-    public void onBackPressed() {}
+    public void onBackPressed() {
+        // ব্লক ব্যাক বাটন
+    }
 }
