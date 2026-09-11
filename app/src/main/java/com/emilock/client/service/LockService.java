@@ -1,13 +1,17 @@
 package com.emilock.client.service;
 
 import android.app.Service;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.UserManager;
 import android.telephony.TelephonyManager;
+import com.emilock.client.receiver.DeviceAdminReceiver;
 import com.emilock.client.ui.LockActivity;
 import org.json.JSONObject;
 import java.io.BufferedReader;
@@ -33,9 +37,9 @@ public class LockService extends Service {
         while (isRunning) {
             try {
                 sendPing();
-                Thread.sleep(15000); // প্রতি ১৫ সেকেন্ড পর পর সার্ভার চেক
+                Thread.sleep(8000); // প্রতি ৮ সেকেন্ড পর পর চেক
             } catch (Exception ignored) {
-                try { Thread.sleep(5000); } catch (Exception ignored2) {}
+                try { Thread.sleep(4000); } catch (Exception ignored2) {}
             }
         }
     }
@@ -59,11 +63,12 @@ public class LockService extends Service {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
-            conn.setConnectTimeout(6000);
-            conn.setReadTimeout(6000);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
 
             JSONObject req = new JSONObject();
             req.put("imei", imei);
+            req.put("model", Build.MANUFACTURER + " " + Build.MODEL);
             req.put("latitude", lat);
             req.put("longitude", lng);
 
@@ -79,10 +84,34 @@ public class LockService extends Service {
                 JSONObject res = new JSONObject(sb.toString());
                 String status = res.optString("status", "ACTIVE");
 
+                DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+                ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+
+                // ১. লক সিগন্যাল
                 if ("LOCKED".equals(status)) {
+                    if (dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
+                        dpm.lockNow();
+                    }
                     Intent lockIntent = new Intent(this, LockActivity.class);
                     lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(lockIntent);
+                }
+
+                // ২. রিমোট ফ্যাক্টরি রিসেট (Wipe Data)
+                if ("WIPE".equals(status)) {
+                    if (dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
+                        dpm.wipeData(0); // কোনো বাটন ছাড়া দূর থেকেই স্বয়ংক্রিয় রিসেট
+                    }
+                }
+
+                // ৩. রিলিজ (মুক্ত করা)
+                if ("RELEASED".equals(status)) {
+                    if (dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
+                        dpm.clearUserRestriction(admin, UserManager.DISALLOW_FACTORY_RESET);
+                        dpm.clearUserRestriction(admin, UserManager.DISALLOW_SAFE_BOOT);
+                        dpm.setUninstallBlocked(admin, getPackageName(), false);
+                        dpm.clearDeviceOwnerApp(getPackageName());
+                    }
                 }
             }
         } catch (Exception ignored) {}
