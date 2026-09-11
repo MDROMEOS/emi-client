@@ -1,2 +1,2 @@
-#!/usr/bin/env sh
-exec gradle "$@"
+#!/bin/sh
+gradle "$@"
